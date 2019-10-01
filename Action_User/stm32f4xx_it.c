@@ -38,8 +38,6 @@
 #include "can.h"
 #include "gpio.h"
 #include "elmo.h"
-#include "pps.h"
-#include "fort.h"
 
 /******************************************************************************/
 /*            Cortex-M4 Processor Exceptions Handlers                         */
@@ -270,9 +268,7 @@ void AT_CMD_Handle(char *buffer,uint8_t bufferI)
 		actualNote = HDO;
 		USART_OUT(USART2,(uint8_t*)"HDO\r\n");
 	}
-
 	bufferInit();
-
 }
 
 void USART1_IRQHandler(void)
@@ -313,10 +309,6 @@ void USART2_IRQHandler(void)
 		{
 			bufferInit();
 		}
-//		else
-//		{
-//			bufferInit();
-//		}		
 	}
 	else
 	{
@@ -348,23 +340,14 @@ void USART3_IRQHandler(void)
 
 	if (USART_GetITStatus(USART3, USART_IT_RXNE) == SET)
 	{
-		uint8_t posData = 0;
 		USART_ClearITPendingBit(USART3, USART_IT_RXNE);
-		posData = USART_ReceiveData(USART3);
-		GetPosition(posData);
 	}
 	OSIntExit();
 }
 
 void USART6_IRQHandler(void) //更新频率200Hz
 {
-	static uint8_t ch;
-	static union {
-		uint8_t data[24];
-		float ActVal[6];
-	} posture;
-	static uint8_t count = 0;
-	static uint8_t i = 0;
+
 	OS_CPU_SR cpu_sr;
 	OS_ENTER_CRITICAL(); /* Tell uC/OS-II that we are starting an ISR*/
 	OSIntNesting++;
@@ -373,63 +356,6 @@ void USART6_IRQHandler(void) //更新频率200Hz
 	if (USART_GetITStatus(USART6, USART_IT_RXNE) == SET)
 	{
 		USART_ClearITPendingBit(USART6, USART_IT_RXNE);
-		ch = USART_ReceiveData(USART6);
-		switch (count)
-		{
-		case 0:
-			if (ch == 0x0d)
-				count++;
-			else
-				count = 0;
-			break;
-
-		case 1:
-			if (ch == 0x0a)
-			{
-				i = 0;
-				count++;
-			}
-			else if (ch == 0x0d)
-				;
-			else
-				count = 0;
-			break;
-
-		case 2:
-			posture.data[i] = ch;
-			i++;
-			if (i >= 24)
-			{
-				i = 0;
-				count++;
-			}
-			break;
-
-		case 3:
-			if (ch == 0x0a)
-				count++;
-			else
-				count = 0;
-			break;
-
-		case 4:
-			if (ch == 0x0d)
-			{
-
-				posture.ActVal[0] = posture.ActVal[0];
-				posture.ActVal[1] = posture.ActVal[1];
-				posture.ActVal[2] = posture.ActVal[2];
-				posture.ActVal[3] = posture.ActVal[3];
-				posture.ActVal[4] = posture.ActVal[4];
-				posture.ActVal[5] = posture.ActVal[5];
-			}
-			count = 0;
-			break;
-
-		default:
-			count = 0;
-			break;
-		}
 	}
 	else
 	{

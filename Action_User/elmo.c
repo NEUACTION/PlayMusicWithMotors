@@ -7,8 +7,9 @@
 /*******************************控制驱动器命令************************************/
 
 /**
-* @brief  Play Music Mode
-* @param  CANx：所使用的CAN通道编号
+* @brief  将音符送入驱动器的和声通道中
+* @param  CANx：所使用的CAN通道编号 
+          ElmoNum 节点号码
 * @author ACTION
 */
 void PlayMusicChannel2(CAN_TypeDef* CANx,uint8_t ElmoNum,uint32_t note)
@@ -55,7 +56,7 @@ void PlayMusicChannel2(CAN_TypeDef* CANx,uint8_t ElmoNum,uint32_t note)
 }
 
 /**
-* @brief  Play Music Mode
+* @brief  将音符送入驱动器主音通道中
 * @param  CANx：所使用的CAN通道编号
 * @author ACTION
 */

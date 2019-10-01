@@ -422,16 +422,6 @@
               <FileType>1</FileType>
               <FilePath>..\Action_User\can.c</FilePath>
             </File>
-            <File>
-              <FileName>pps.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Action_User\pps.c</FilePath>
-            </File>
-            <File>
-              <FileName>moveBase.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Action_User\moveBase.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>

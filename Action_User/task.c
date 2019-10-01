@@ -10,8 +10,7 @@
 #include "usart.h"
 #include "can.h"
 #include "elmo.h"
-#include "pps.h"
-#include "fort.h"
+
 
 /*
 ===============================================================
@@ -22,7 +21,7 @@ OS_EXT INT8U OSCPUUsage;
 OS_EVENT *PeriodSem;
 
 static OS_STK App_ConfigStk[Config_TASK_START_STK_SIZE];
-static OS_STK WalkTaskStk[Walk_TASK_STK_SIZE];
+static OS_STK PlayMusicTaskStk[PLAY_MUSIC_TASK_STK_SIZE ];
 
 void App_Task()
 {
@@ -38,10 +37,10 @@ void App_Task()
 						  (OS_STK *)&App_ConfigStk[Config_TASK_START_STK_SIZE - 1],
 						  (INT8U)Config_TASK_START_PRIO);
 
-	os_err = OSTaskCreate((void (*)(void *))WalkTask,
+	os_err = OSTaskCreate((void (*)(void *))PlayMusicTask,
 						  (void *)0,
-						  (OS_STK *)&WalkTaskStk[Walk_TASK_STK_SIZE - 1],
-						  (INT8U)Walk_TASK_PRIO);
+						  (OS_STK *)&PlayMusicTaskStk[PLAY_MUSIC_TASK_STK_SIZE - 1],
+						  (INT8U)PLAY_MUSIC_TASK_PRIO);
 }
 
 /*
@@ -60,17 +59,8 @@ void ConfigTask(void)
 	UART4_Init(921600);
 	
 	CAN_Config(CAN1, 500, GPIOB, GPIO_Pin_8, GPIO_Pin_9);
-//	CAN_Config(CAN2, 500, GPIOB, GPIO_Pin_5, GPIO_Pin_6);
-	
-//	VelLoopCfg(CAN1,1,32768 * 100,32768 * 100);
 	
 	TIM_Init(TIM2, 99, 839, 1, 0);
-	
-//	for(uint8_t i = 0 ; i <=10 ; i++)
-//	{
-//		delay_ms(1000);
-//	}
-//	WaitOpsPrepare();
 	
 	delay_ms(2000);
 	OSTaskSuspend(OS_PRIO_SELF);
@@ -83,144 +73,85 @@ int musicControlFlag = 0;
 float soundDelay = 20,soundDelayCnt = 0;
 int actualNote = EMPTY;
 
-int Preview(int* cnt, int* n);
-int APart(int* cnt, int* n);
+int Preview(int* cnt, int* n);//乐曲前奏
+int APart(int* cnt, int* n);//乐曲A Part
 int BPart(int* cnt, int* n);
 int CPart(int* cnt, int* n);
 int DPart(int* cnt, int* n);
 
-int PlayWhole(int* cnt,int note);
-int PlayShort(int* cnt,int note);
-int PlayMedium(int* cnt,int note);
-int PlayLong(int* cnt,int note);
-int PlayChord(int note);
-void WalkTask(void)
+int PlayWhole(int* cnt,int note);//一音符一拍
+int PlayShort(int* cnt,int note);//短促音
+int PlayLong(int* cnt,int note);//一音符两拍
+int PlayChord(int note);//和音通道
+
+void PlayMusicTask(void)
 {
 
 	CPU_INT08U os_err;
 	os_err = os_err;
 	OSSemSet(PeriodSem, 0, &os_err);
-	int mode = 0,cnt = 0;
-	int cntP = 0,mP = 0, nP = 0;
-	int slice = 5, bat = 10;
+	int mode = 0;//乐曲行进记录
+	int cntP = 0;//音符行进记录
+	int	nP = 0;//节拍行进记录
 
 	while (1)
 	{	
 		OSSemPend(PeriodSem, 0, &os_err);
-
-//		if(cnt >= 20)
-//		{	
-//			musicControlFlag = 1;
-//			actualNote += 1;
-//			if (actualNote > HDO)
-//			{
-//				actualNote = EMPTY;
-//			}
-//			cnt = 0;
-//		}
-//		musicControlFlag = 1;
-//		if(musicControlFlag == 1)
-//		{
-//			switch(mode)
-//			{
-//				case 0:
-//					PlayMusic(CAN1,9,actualNote);
-//					mode = 1; 
-//					break;
-//				case 1:
-//					soundDelayCnt++;
-//					if(soundDelayCnt >= soundDelay)
-//					{
-//						mode = 0;
-//						musicControlFlag = 0;
-//						soundDelayCnt = 0;
-//						PlayMusic(CAN1,9,EMPTY);
-//					}
-//					break;
-//			}
+			//乐曲行进
 			switch(mode)
 			{
 				case 0:
-					if(Preview(&cntP,&nP) == 1)
+					if(Preview(&cntP,&nP) == 1)//前奏
 					{
 						mode =1 ;
-						cntP = 0;
 						nP = 0;
-						mP = 0;
 					}
 					break;
 				case 1:
-					cnt++;
 					if(APart(&cntP,&nP) == 1)
 					{
 						mode =2;
-						cnt = 0;
 						nP = 0;
-						mP = 0;
 					}
 					break;
 				case 2:
-					cnt++;
 					if(BPart(&cntP,&nP) == 1)
 					{
 						mode =3;
-						cnt = 0;
 						nP = 0;
-						mP = 0;
 					}
 					break;
 				case 3:
 					if(CPart(&cntP,&nP) == 1)
 					{
 						mode =99;
-						cnt = 0;
 						nP = 0;
-						mP = 0;
 					}					
 					break;
 				case 4:
-					if(DPart(&cntP,&nP) == 1)
-					{
-						mode =99;
-						cnt = 0;
-						nP = 0;
-						mP = 0;
-					}							
+										
 					break;
 				case 5:
-					cnt++;
-					if(APart(&cntP,&nP) == 1)
-					{
-						mode =6;
-						cnt = 0;
-						nP = 0;
-						mP = 0;
-					}					
+				
 					break;
 				case 6:
-					cnt++;
-					if(BPart(&cntP,&nP) == 1)
-					{
-						mode =7;
-						cnt = 0;
-						nP = 0;
-						mP = 0;
-					}					
+						
 					break;
-				
 			}
-
 		}
 	}
 
-
+/**
+* @brief  前奏
+* @param  cnt  乐符进行  
+	        n    小节进行
+* @author ACTION
+*/
 int Preview(int* cnt, int* n)
 {
-	
-	int recordFlag = 0,recordMode = 0;
 	int noteNum = 30;
 	int flag = 0;
-	int note[]=
+	int note[]=  //手动输入前奏音符
 	{
 		MI,FA,SO,\
 		LA,EMPTY,EMPTY,HDO,SI,LA,\
@@ -230,7 +161,7 @@ int Preview(int* cnt, int* n)
 		HRI,HRI,HSO,HSO//30
 	};
 	
-	if(*n == 26 || *n == 27 || *n == 28 || *n == 29)
+	if(*n == 26 || *n == 27 || *n == 28 || *n == 29)//判断需要使用长音的音符
 	{
 		flag = PlayLong(cnt,note[*n]);
 	}
@@ -238,7 +169,7 @@ int Preview(int* cnt, int* n)
 	{
 		flag = PlayWhole(cnt,note[*n]);	
 	}
-	if(flag == 1)
+	if(flag == 1)//手动配置和音
 	{
 		(*n)++;
 	}	
@@ -351,7 +282,6 @@ int APart(int* cnt, int* n)
 
 int BPart(int* cnt, int* n)
 {
-	int recordFlag = 0,recordMode = 0;
 	int noteNum = 40;
 	int flag = 0;	
 	int note[]=
@@ -426,7 +356,6 @@ int BPart(int* cnt, int* n)
 
 int CPart(int* cnt, int* n)
 {
-	int recordFlag = 0,recordMode = 0;
 	int noteNum = 41;
 	int flag = 0;	
 	int note[]=
@@ -513,49 +442,17 @@ int CPart(int* cnt, int* n)
 	return 0;	
 }
 
-int DPart(int* cnt, int* n)
-{
-	int recordFlag = 0,recordMode = 0;
-	int noteNum = 22;
-	int flag = 0;	
-	int note[]=
-	{
-		HDO,HDO,HDO,HDO,SO,LA,\
-		HDO,LA,SO,FA,LA,SO,\
-		//12-15
-		HDO,HDO,SO,SO,\
-		LA,SO,FA,MI,RI,DO,
-	};
-	if(*n == 0 || *n == 2 || *n == 6 || *n == 8|| *n == 1 || *n == 3 || *n == 4 || *n == 7 || *n == 9|| *n == 10||  *n == 16|| *n == 17 || *n == 18|| *n == 19 || *n == 20 )
-	{
-		flag = PlayMedium(cnt,note[*n]);
-	}
-	else if(*n == 5 || *n == 11 || *n == 21 )
-	{
-		flag = PlayLong(cnt,note[*n]);	
-	}
-	else
-	{
-		flag = PlayWhole(cnt,note[*n]);	
-	}
-	
-	if(flag == 1)
-	{
-		(*n)++;
-	}	
-	
-	if(*n >= noteNum)	
-		return 1;
-	
-	return 0;	
-	return 1;
-}
 
 
-
+/**
+* @brief  音符演奏
+* @param  cnt  乐符进行  
+	        note    小节进行
+* @author ACTION
+*/
 int PlayWhole(int* cnt,int note)
 {
-	static int slice = 30;
+	static int slice = 30; //单个乐符行进速度为30个周期(300ms)
 	PlayMusic(CAN1,9,note);
 	PlayMusic(CAN1,8,note);
 	(*cnt)++;
@@ -567,29 +464,12 @@ int PlayWhole(int* cnt,int note)
 	}
 	return 0;
 }
-
-int PlayMedium(int* cnt,int note)
-{
-	static int slice = 20;
-	(*cnt)++;
-
-	if(*cnt <= slice / 2)
-	{
-		PlayMusic(CAN1,9,note);
-		PlayMusic(CAN1,8,note);
-	}
-	else if(*cnt <= slice)
-	{
-		PlayMusic(CAN1,9,EMPTY);
-		PlayMusic(CAN1,8,EMPTY);
-	}	
-	else
-	{
-		(*cnt) = 0;	
-		return 1;
-	}
-	return 0;
-}
+/**
+* @brief  促音符演奏
+* @param  cnt  乐符进行  
+	        note    小节进行
+* @author ACTION
+*/
 int PlayShort(int* cnt,int note)
 {
 	static int slice = 10;
@@ -613,7 +493,12 @@ int PlayShort(int* cnt,int note)
 	}
 	return 0;
 }
-
+/**
+* @brief  延音符演奏
+* @param  cnt  乐符进行  
+	        note    小节进行
+* @author ACTION
+*/
 int PlayLong(int* cnt,int note)
 {
 	static int slice = 90;
@@ -629,11 +514,16 @@ int PlayLong(int* cnt,int note)
 	}
 	return 0;
 }
-
+/**
+* @brief  和音通道
+* @param  note    小节进行
+* @author ACTION
+*/
 int PlayChord(int note)
 {
 	PlayMusicChannel2(CAN1,9,note);
 	PlayMusicChannel2(CAN1,8,note);
+	return 0;
 }
 
 
